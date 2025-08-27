@@ -55,4 +55,5 @@ for cnpj in cnpjs:
     resultados.loc[len(resultados)] = [cnpj_formatado, situacao]
 
 # Salva os resultados
+
 resultados.to_excel('Resultados_Situacao_CNPJ.xlsx', index=False)
