@@ -67,11 +67,13 @@ for responsavel_pdf, valor_pdf in valores_pdf.items():
     nome_txt = encontrar_nome_proximo(responsavel_pdf, valores_txt.keys())
     if nome_txt:
         valor_txt = valores_txt[nome_txt]
-        diferenca = round(valor_pdf - valor_txt, 2)
+        metade_extrato = round(valor_pdf / 2, 2)
+        diferenca = round(valor_txt - metade_extrato, 2)
 
         print(f"{responsavel_pdf} (TXT: {nome_txt}):")
         print(f"  ➤ Valor descontado na Folha: R$ {valor_txt:.2f}")
         print(f"  ➤ Valor Total Família no Extrato: R$ {valor_pdf:.2f}")
-        print(f"  ➤ Diferença: R$ {diferenca:.2f}\n")
+        print(f"  ➤ Metade do valor do Extrato: R$ {metade_extrato:.2f}")
+        print(f"  ➤ Diferença entre desconto e metade do extrato: R$ {diferenca:.2f}\n")
     else:
         print(f"{responsavel_pdf}: não encontrado no TXT\n")
