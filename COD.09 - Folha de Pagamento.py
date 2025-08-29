@@ -10,7 +10,7 @@ def normalizar_nome(nome):
     nome = ''.join(c for c in nome if not unicodedata.combining(c))
     return nome.upper().strip()
 
-# Função para extrair valores do TXT
+# Função para extrair valores do TXT (Unimed + Odonto)
 def extrair_valores_txt(caminho_txt):
     with open(caminho_txt, "r", encoding="latin1") as arquivo:
         texto = arquivo.read()
@@ -20,19 +20,22 @@ def extrair_valores_txt(caminho_txt):
 
     for codigo, nome in colaboradores:
         nome_limpo = normalizar_nome(' '.join(nome.strip().split()))
-        # Buscar bloco específico do colaborador
-        padrao_bloco = rf"{codigo}\s+{nome.strip()}(.*?)(?=\d{{6}}\s+[A-ZÀ-Ú\s\-]+|\Z)"
+        padrao_bloco = rf"{codigo}\s+{re.escape(nome.strip())}(.*?)(?=\d{{6}}\s+[A-ZÀ-Ú\s\-]+|\Z)"
         bloco_match = re.search(padrao_bloco, texto, re.DOTALL)
         bloco = bloco_match.group(1) if bloco_match else ""
 
         titular = re.search(r"Unimed.*?- T.*?([\d.,]+)-", bloco)
         dependente = re.search(r"Unimed.*?- D.*?([\d.,]+)-", bloco)
+        odontos = re.findall(r"Dental Uni Odonto.*?([\d.,]+)-", bloco)
 
         valor_t = float(titular.group(1).replace('.', '').replace(',', '.')) if titular else 0.0
         valor_d = float(dependente.group(1).replace('.', '').replace(',', '.')) if dependente else 0.0
-        total = valor_t + valor_d
+        valor_odontologico = sum(float(v.replace('.', '').replace(',', '.')) for v in odontos)
 
-        valores_txt[nome_limpo] = round(total, 2)
+        valores_txt[nome_limpo] = {
+            "valor_unimed": round(valor_t + valor_d, 2),
+            "valor_odontologico": round(valor_odontologico, 2)
+        }
 
     return valores_txt
 
@@ -75,32 +78,46 @@ for responsavel_pdf, valor_pdf in valores_pdf.items():
     metade_extrato = round(valor_pdf / 2, 2)
 
     if nome_txt:
-        valor_txt = valores_txt[nome_txt]
-        diferenca = round(valor_txt - metade_extrato, 2)
+        valor_unimed = valores_txt[nome_txt]["valor_unimed"]
+        valor_odontologico = valores_txt[nome_txt]["valor_odontologico"]
+        diferenca = round(valor_unimed - metade_extrato, 2)
 
         registros.append({
             "Responsável (PDF)": responsavel_pdf.title(),
             "Nome Correspondente (TXT)": nome_txt.title(),
-            "Valor Descontado na Folha": valor_txt,
+            "Valor Descontado na Folha (Unimed)": valor_unimed,
             "Valor Total Família (Extrato)": valor_pdf,
             "Metade do Valor do Extrato": metade_extrato,
-            "Diferença (Desconto - Metade Extrato)": diferenca
+            "Diferença (Desconto - Metade Extrato)": diferenca,
+            "Valor Odontológico (TXT)": valor_odontologico  # Agora como última coluna
         })
     else:
         registros.append({
             "Responsável (PDF)": responsavel_pdf.title(),
             "Nome Correspondente (TXT)": "Não encontrado",
-            "Valor Descontado na Folha": None,
+            "Valor Descontado na Folha (Unimed)": None,
             "Valor Total Família (Extrato)": valor_pdf,
             "Metade do Valor do Extrato": metade_extrato,
-            "Diferença (Desconto - Metade Extrato)": None
+            "Diferença (Desconto - Metade Extrato)": None,
+            "Valor Odontológico (TXT)": None  # Última coluna
         })
 
 # Criar DataFrame e exportar para Excel
 df = pd.DataFrame(registros)
-caminho_saida = r"C:\Users\matheus.melo\OneDrive - Acumuladores Moura SA\Documentos\Drive - Matheus Melo\Automações\Folha\Teste\comparativo_unimed_v3.xlsx"
+
+# Reordenar colunas para garantir que odontológico fique por último
+colunas_ordenadas = [
+    "Responsável (PDF)",
+    "Nome Correspondente (TXT)",
+    "Valor Descontado na Folha (Unimed)",
+    "Valor Total Família (Extrato)",
+    "Metade do Valor do Extrato",
+    "Diferença (Desconto - Metade Extrato)",
+    "Valor Odontológico (TXT)"
+]
+df = df[colunas_ordenadas]
+
+caminho_saida = r"C:\Users\matheus.melo\OneDrive - Acumuladores Moura SA\Documentos\Drive - Matheus Melo\Automações\Folha\Teste\comparativo_unimed_v5.xlsx"
 df.to_excel(caminho_saida, index=False)
 
 print(f"✅ Comparativo gerado com sucesso e exportado para:\n{caminho_saida}")
-
-
