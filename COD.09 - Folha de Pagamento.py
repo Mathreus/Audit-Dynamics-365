@@ -1,6 +1,7 @@
 import re
 import pdfplumber
 import difflib
+import pandas as pd
 
 # Função para extrair valores do TXT
 def extrair_valores_txt(caminho_txt):
@@ -61,8 +62,9 @@ caminho_pdf = r"C:\Users\matheus.melo\OneDrive - Acumuladores Moura SA\Documento
 valores_txt = extrair_valores_txt(caminho_txt)
 valores_pdf = extrair_valores_pdf(caminho_pdf)
 
-# Comparar e exibir diferenças
-print("📊 Comparativo entre Folha (desconto) e Extrato (Total Família):\n")
+# Criar lista de registros para tabela
+registros = []
+
 for responsavel_pdf, valor_pdf in valores_pdf.items():
     nome_txt = encontrar_nome_proximo(responsavel_pdf, valores_txt.keys())
     if nome_txt:
@@ -70,10 +72,28 @@ for responsavel_pdf, valor_pdf in valores_pdf.items():
         metade_extrato = round(valor_pdf / 2, 2)
         diferenca = round(valor_txt - metade_extrato, 2)
 
-        print(f"{responsavel_pdf} (TXT: {nome_txt}):")
-        print(f"  ➤ Valor descontado na Folha: R$ {valor_txt:.2f}")
-        print(f"  ➤ Valor Total Família no Extrato: R$ {valor_pdf:.2f}")
-        print(f"  ➤ Metade do valor do Extrato: R$ {metade_extrato:.2f}")
-        print(f"  ➤ Diferença entre desconto e metade do extrato: R$ {diferenca:.2f}\n")
+        registros.append({
+            "Responsável (PDF)": responsavel_pdf,
+            "Nome Correspondente (TXT)": nome_txt,
+            "Valor Descontado na Folha": valor_txt,
+            "Valor Total Família (Extrato)": valor_pdf,
+            "Metade do Valor do Extrato": metade_extrato,
+            "Diferença (Desconto - Metade Extrato)": diferenca
+        })
     else:
-        print(f"{responsavel_pdf}: não encontrado no TXT\n")
+        registros.append({
+            "Responsável (PDF)": responsavel_pdf,
+            "Nome Correspondente (TXT)": "Não encontrado",
+            "Valor Descontado na Folha": None,
+            "Valor Total Família (Extrato)": valor_pdf,
+            "Metade do Valor do Extrato": round(valor_pdf / 2, 2),
+            "Diferença (Desconto - Metade Extrato)": None
+        })
+
+# Criar DataFrame e exportar para Excel
+df = pd.DataFrame(registros)
+caminho_saida = r"C:\Users\matheus.melo\OneDrive - Acumuladores Moura SA\Documentos\Drive - Matheus Melo\Automações\Folha\Teste\comparativo_unimed.xlsx"
+df.to_excel(caminho_saida, index=False)
+
+print(f"✅ Comparativo gerado com sucesso e exportado para:\n{caminho_saida}")
+
