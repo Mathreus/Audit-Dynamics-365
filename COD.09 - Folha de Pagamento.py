@@ -12,8 +12,8 @@ pd.set_option('display.width', 1000)
 pd.set_option('display.colheader_justify', 'center')
 
 # Caminhos dos arquivos
-CAMINHO_BASE = r"C:\Users\matheus.melo\OneDrive - Acumuladores Moura SA\Documentos\Drive - Matheus Melo\Auditoria\2025\09. Setembro\Comal\03 - Testes\Folha de Pagamento"
-NOME_ARQUIVO_TXT = "Folha_Comal.txt"
+CAMINHO_BASE = r"C:\Users\matheus.melo\OneDrive - Acumuladores Moura SA\Documentos\Drive - Matheus Melo\Automações\Folha\Bauru"
+NOME_ARQUIVO_TXT = "Fopag_Bauru.txt"
 CAMINHO_ARQUIVO_TXT = os.path.join(CAMINHO_BASE, NOME_ARQUIVO_TXT)
 
 # Lista de códigos de proventos e descontos (será preenchida dinamicamente)
@@ -156,7 +156,11 @@ def parse_payroll_file(filepath):
                 # Verificar se esta descrição existe no nosso dicionário
                 for prov_codigo, prov_descricao in todos_proventos:
                     if prov_descricao == descricao:
-                        current_employee[descricao] = f"R$ {valor}"
+                        # limpar string e converter
+                        valor_novo = float(valor.replace(".", "").replace(",", "."))
+                        valor_existente = extrair_valor_numerico(current_employee.get(descricao, "R$ 0,00"))
+                        soma = valor_existente + valor_novo
+                        current_employee[descricao] = f"R$ {soma:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
                         break
             
             # Procurar por descontos (linhas com - no final)
@@ -169,7 +173,10 @@ def parse_payroll_file(filepath):
                 # Verificar se esta descrição existe no nosso dicionário
                 for desc_codigo, desc_descricao in todos_descontos:
                     if desc_descricao == descricao:
-                        current_employee[descricao] = f"R$ {valor}"
+                        valor_novo = float(valor.replace(".", "").replace(",", "."))
+                        valor_existente = extrair_valor_numerico(current_employee.get(descricao, "R$ 0,00"))
+                        soma = valor_existente + valor_novo
+                        current_employee[descricao] = f"R$ {soma:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
                         break
             
             # Procurar totais
@@ -452,4 +459,3 @@ def main():
 if __name__ == "__main__":
     # Executar função principal
     main()
-
