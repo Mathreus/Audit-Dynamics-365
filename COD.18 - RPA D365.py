@@ -3,7 +3,9 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.action_chains import ActionChains
 import time
+import os
 
 # Credenciais de acesso
 usuario = "matheus.melo@bateriasmoura.com"
@@ -13,6 +15,16 @@ senha = "@Mat108104"
 options = webdriver.ChromeOptions()
 options.add_argument("--incognito")
 options.add_argument("--start-maximized")
+
+# CONFIGURAÇÃO PARA MOSTRAR O DIÁLOGO "SALVAR COMO"
+prefs = {
+    "download.default_directory": "",  # String vazia para não definir diretório padrão
+    "download.prompt_for_download": True,  # IMPORTANTE: Mostrar diálogo de salvamento
+    "download.directory_upgrade": True,
+    "safebrowsing.enabled": True,
+    "safebrowsing.disable_download_protection": True
+}
+options.add_experimental_option("prefs", prefs)
 
 # Inicia o navegador
 driver = webdriver.Chrome(options=options)
@@ -57,8 +69,9 @@ def executar_faturamento():
         print("🔍 Iniciando preenchimento do relatório...")
         print(f"📄 URL atual: {driver.current_url}")
         print(f"📄 Título da página: {driver.title}")
+        print("💡 O diálogo 'Salvar como' será aberto para você escolher onde salvar o arquivo")
 
-        # PREENCHER CAMPO DA EMPRESA
+        # *PREENCHER CAMPO DA EMPRESA*
         try:
             campo_empresa = WebDriverWait(driver, 15).until(
                 EC.presence_of_element_located((By.XPATH, "//input[contains(@id, 'Company') or contains(@name, 'Company')]"))
@@ -71,7 +84,7 @@ def executar_faturamento():
             print(f"❌ Erro ao preencher campo empresa: {e}")
             return
 
-        # CLICAR NO CHECKBOX/FLAG
+        # *CLICAR NO CHECKBOX/FLAG*
         try:
             print("🔍 Procurando checkbox/flag...")
             
@@ -134,7 +147,7 @@ def executar_faturamento():
         except Exception as e:
             print(f"❌ Erro ao tentar clicar no checkbox: {e}")
 
-        # CLICAR EM SELECIONAR
+        # *CLICAR EM SELECIONAR*
         try:
             botao_selecionar = WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable((By.XPATH, "//*[contains(text(), 'Selecionar')]"))
@@ -146,7 +159,7 @@ def executar_faturamento():
             print(f"❌ Todas as tentativas falharam: {e}")
             return
 
-        # PREENCHER DATAS - COM MÚLTIPLAS TENTATIVAS
+        # *PREENCHER DATAS - COM MÚLTIPLAS TENTATIVAS*
         print("🔍 Procurando campos de data...")
         
         # Estratégias para encontrar a data inicial
@@ -204,18 +217,7 @@ def executar_faturamento():
 
         time.sleep(2)
 
-        # DEBUG: LISTAR TODOS OS BOTÕES DISPONÍVEIS
-        print("🔍 DEBUG - Listando todos os botões da página:")
-        botoes = driver.find_elements(By.XPATH, "//button | //input[@type='button'] | //input[@type='submit'] | //a[@role='button'] | //div[@role='button']")
-        for i, botao in enumerate(botoes):
-            botao_id = botao.get_attribute("id") or ""
-            botao_text = botao.text or ""
-            botao_value = botao.get_attribute("value") or ""
-            botao_class = botao.get_attribute("class") or ""
-            if botao_id or botao_text or botao_value:
-                print(f"  Botão {i+1}: id='{botao_id}', text='{botao_text}', value='{botao_value}', class='{botao_class}'")
-
-        # CLICAR EM OK - COM MÚLTIPLAS TENTATIVAS MELHORADAS
+        # *CLICAR EM OK - COM MÚLTIPLAS TENTATIVAS MELHORADAS*
         print("🔍 Procurando botão OK...")
         
         seletores_ok = [
@@ -247,7 +249,30 @@ def executar_faturamento():
                     botao_ok.click()
                     print(f"✅ Botão OK clicado (usando {seletor_value})")
                     ok_clicado = True
-                    time.sleep(5)
+                    
+                    # **AGUARDAR O RELATÓRIO CARREGAR COMPLETAMENTE - ESPERA FIXA DE 3 MINUTOS**
+                    print("⏳ Aguardando o relatório carregar (aguardando 3 minutos fixos)...")
+                    
+                    # Timer para mostrar progresso
+                    start_time = time.time()
+                    total_wait_time = 180  # 3 minutos em segundos
+                    
+                    # Aguarda exatamente 3 minutos (180 segundos) - tempo fixo
+                    for seconds_passed in range(total_wait_time):
+                        if seconds_passed % 30 == 0:  # Mostra progresso a cada 30 segundos
+                            minutes_passed = seconds_passed // 60
+                            seconds_remaining = total_wait_time - seconds_passed
+                            print(f"⏰ Aguardando... {minutes_passed}min {seconds_passed % 60}s passados | {seconds_remaining // 60}min {seconds_remaining % 60}s restantes")
+                        
+                        time.sleep(1)
+                    
+                    elapsed_time = time.time() - start_time
+                    print(f"✅ Tempo de espera concluído: {elapsed_time:.1f} segundos")
+                    
+                    # Aguarda um tempo adicional para garantir carregamento completo
+                    time.sleep(10)
+                    print("✅ Aguardando tempo adicional de segurança")
+                    
                     break
                 except Exception as e:
                     continue
@@ -257,25 +282,214 @@ def executar_faturamento():
             print("💡 Tente verificar manualmente qual é o ID/texto do botão OK na página")
             return
 
-        # SELECIONAR E BAIXAR RELATÓRIO
+        # *EXPORTAR RELATÓRIO - CLIQUE DIREITO NO ELEMENTO ESPECÍFICO*
         try:
-            relatorio = WebDriverWait(driver, 15).until(
-                EC.element_to_be_clickable((By.XPATH, "//tr[contains(@class, 'selected') or @aria-selected='true']"))
-            )
-            relatorio.click()
-            print("✅ Relatório selecionado")
-
-            botao_baixar = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Baixar') or contains(text(), 'Download')]"))
-            )
-            botao_baixar.click()
-            print("✅ Botão Baixar clicado")
+            print("🔍 Preparando para exportar o relatório...")
             
-            time.sleep(8)
-            print("🎉 Relatório de faturamento baixado com sucesso!")
+            # Aguardar um pouco mais para garantir que tudo está carregado
+            time.sleep(5)
+            
+            # USAR O XPATH ESPECÍFICO FORNECIDO
+            xpath_especifico = "//*[@id='GridCell-0-BillingStatementInquiry_Name']/div/div/div"
+            
+            print(f"🔍 Procurando elemento específico com XPath: {xpath_especifico}")
+            
+            # Aguardar e encontrar o elemento específico
+            elemento_alvo = WebDriverWait(driver, 30).until(
+                EC.element_to_be_clickable((By.XPATH, xpath_especifico))
+            )
+            
+            print("✅ Elemento específico encontrado e está clicável")
+            
+            # Verificar se o elemento está visível
+            if elemento_alvo.is_displayed():
+                print("✅ Elemento está visível na tela")
+            else:
+                print("⚠️  Elemento não está visível, mas tentando mesmo assim...")
+            
+            # Criar ActionChains para clique direito
+            actions = ActionChains(driver)
+            
+            # Clicar com botão direito no elemento específico
+            print("🖱️  Clicando com botão direito no elemento específico...")
+            actions.context_click(elemento_alvo).perform()
+            time.sleep(3)
+            
+            # Procurar e clicar na opção "Exportar todas as linhas"
+            print("🔍 Procurando opção 'Exportar todas as linhas'...")
+            
+            seletores_exportar = [
+                (By.XPATH, "//*[contains(text(), 'Exportar todas as linhas')]"),
+                (By.XPATH, "//*[contains(text(), 'Export all rows')]"),
+                (By.XPATH, "//*[contains(text(), 'Exportar') and contains(text(), 'linhas')]"),
+                (By.XPATH, "//*[contains(text(), 'Export') and contains(text(), 'rows')]"),
+                (By.XPATH, "//div[contains(@class, 'context')]//*[contains(text(), 'Exportar')]"),
+                (By.XPATH, "//div[contains(@class, 'menu')]//*[contains(text(), 'Exportar')]"),
+                (By.XPATH, "//*[@role='menu']//*[contains(text(), 'Exportar')]"),
+                (By.XPATH, "//*[@role='menuitem']//*[contains(text(), 'Exportar')]"),
+            ]
+            
+            exportar_clicado = False
+            for seletor_type, seletor_value in seletores_exportar:
+                if not exportar_clicado:
+                    try:
+                        print(f"  Tentando opção: {seletor_value}")
+                        opcao_exportar = WebDriverWait(driver, 10).until(
+                            EC.element_to_be_clickable((seletor_type, seletor_value))
+                        )
+                        opcao_exportar.click()
+                        print(f"✅ Opção 'Exportar todas as linhas' clicada (usando {seletor_value})")
+                        exportar_clicado = True
+                        
+                        # Aguardar a janela de download aparecer
+                        print("⏳ Aguardando janela de download aparecer...")
+                        time.sleep(10)
+                        
+                        # *CLICAR NO BOTÃO BAIXAR - COM O NOVO XPATH*
+                        print("🔍 Procurando botão 'Baixar'...")
+                        xpath_botao_baixar = "//*[@id='DocuFileSaveDialog_5_DownloadButton']"
+                        
+                        try:
+                            botao_baixar = WebDriverWait(driver, 15).until(
+                                EC.element_to_be_clickable((By.XPATH, xpath_botao_baixar))
+                            )
+                            botao_baixar.click()
+                            print("✅ Botão 'Baixar' clicado com sucesso!")
+                            
+                            print("🎯" + "="*70)
+                            print("🎯 DIÁLOGO 'SALVAR COMO' ABERTO!")
+                            print("🎯" + "="*70)
+                            print("💡 Agora você pode escolher manualmente onde salvar o arquivo.")
+                            print("📁 Selecione a pasta desejada e clique em 'Salvar'.")
+                            print("⏰ O navegador NÃO será fechado automaticamente.")
+                            print("")
+                            print("🔄 Quando terminar de salvar o arquivo:")
+                            print("1. Feche a janela do diálogo 'Salvar como'")
+                            print("2. Volte para este terminal")
+                            print("3. Pressione ENTER para fechar o navegador")
+                            print("")
+                            
+                            # **ESPERA MANUAL - O USUÁRIO DECIDE QUANDO FECHAR**
+                            input("👉 Pressione ENTER para fechar o navegador...")
+                            
+                            print("✅ Salvamento manual concluído pelo usuário.")
+                            
+                        except Exception as e:
+                            print(f"❌ Erro ao clicar no botão 'Baixar': {e}")
+                            print("💡 Tentando estratégias alternativas para o botão Baixar...")
+                            
+                            # Estratégias alternativas para o botão Baixar
+                            seletores_baixar_alternativos = [
+                                (By.XPATH, "//*[@id='DocuFileSaveDialog_5_DownloadButton_label']"),
+                                (By.XPATH, "//button[contains(text(), 'Baixar')]"),
+                                (By.XPATH, "//input[@value='Baixar']"),
+                                (By.XPATH, "//*[contains(text(), 'Baixar')]"),
+                                (By.XPATH, "//button[contains(text(), 'Download')]"),
+                                (By.XPATH, "//input[@value='Download']"),
+                                (By.XPATH, "//*[contains(text(), 'Download')]"),
+                            ]
+                            
+                            baixar_clicado = False
+                            for seletor_type_baixar, seletor_value_baixar in seletores_baixar_alternativos:
+                                if not baixar_clicado:
+                                    try:
+                                        print(f"  Tentando botão alternativo: {seletor_value_baixar}")
+                                        botao_alt = WebDriverWait(driver, 5).until(
+                                            EC.element_to_be_clickable((seletor_type_baixar, seletor_value_baixar))
+                                        )
+                                        botao_alt.click()
+                                        print(f"✅ Botão de download clicado (alternativo: {seletor_value_baixar})")
+                                        baixar_clicado = True
+                                        
+                                        print("🎯" + "="*70)
+                                        print("🎯 DIÁLOGO 'SALVAR COMO' ABERTO!")
+                                        print("🎯" + "="*70)
+                                        print("💡 Agora você pode escolher manualmente onde salvar o arquivo.")
+                                        print("📁 Selecione a pasta desejada e clique em 'Salvar'.")
+                                        print("⏰ O navegador NÃO será fechado automaticamente.")
+                                        print("")
+                                        print("🔄 Quando terminar de salvar o arquivo:")
+                                        print("1. Feche a janela do diálogo 'Salvar como'")
+                                        print("2. Volte para este terminal")
+                                        print("3. Pressione ENTER para fechar o navegador")
+                                        print("")
+                                        
+                                        # **ESPERA MANUAL - O USUÁRIO DECIDE QUANDO FECHAR**
+                                        input("👉 Pressione ENTER para fechar o navegador...")
+                                        
+                                        print("✅ Salvamento manual concluído pelo usuário.")
+                                        break
+                                    except Exception as alt_e:
+                                        continue
+                            
+                            if not baixar_clicado:
+                                print("❌ Não foi possível encontrar o botão de download")
+                        
+                        break
+                    except Exception as e:
+                        print(f"  ❌ Opção não encontrada com {seletor_value}: {e}")
+                        continue
+            
+            if not exportar_clicado:
+                print("❌ Não foi possível encontrar a opção 'Exportar todas as linhas'")
+                print("💡 Tentando estratégia alternativa...")
+                
+                # Estratégia alternativa: procurar por qualquer opção de exportação
+                try:
+                    opcoes_exportacao = driver.find_elements(By.XPATH, "//*[contains(text(), 'Exportar')] | //*[contains(text(), 'Export')]")
+                    print(f"🔍 Encontradas {len(opcoes_exportacao)} opções de exportação")
+                    
+                    for i, opcao in enumerate(opcoes_exportacao):
+                        try:
+                            if opcao.is_displayed():
+                                texto_opcao = opcao.text
+                                print(f"  Opção {i+1}: '{texto_opcao}'")
+                                if 'exportar' in texto_opcao.lower() or 'export' in texto_opcao.lower():
+                                    opcao.click()
+                                    print(f"✅ Opção de exportação clicada: '{texto_opcao}'")
+                                    
+                                    # Aguardar a janela de download aparecer
+                                    time.sleep(10)
+                                    
+                                    # Tentar clicar no botão Baixar após exportação alternativa
+                                    try:
+                                        botao_baixar = WebDriverWait(driver, 15).until(
+                                            EC.element_to_be_clickable((By.XPATH, "//*[@id='DocuFileSaveDialog_5_DownloadButton']"))
+                                        )
+                                        botao_baixar.click()
+                                        print("✅ Botão 'Baixar' clicado após exportação alternativa")
+                                        
+                                        print("🎯" + "="*70)
+                                        print("🎯 DIÁLOGO 'SALVAR COMO' ABERTO!")
+                                        print("🎯" + "="*70)
+                                        print("💡 Agora você pode escolher manualmente onde salvar o arquivo.")
+                                        print("📁 Selecione a pasta desejada e clique em 'Salvar'.")
+                                        print("⏰ O navegador NÃO será fechado automaticamente.")
+                                        print("")
+                                        print("🔄 Quando terminar de salvar o arquivo:")
+                                        print("1. Feche a janela do diálogo 'Salvar como'")
+                                        print("2. Volte para este terminal")
+                                        print("3. Pressione ENTER para fechar o navegador")
+                                        print("")
+                                        
+                                        # **ESPERA MANUAL - O USUÁRIO DECIDE QUANDO FECHAR**
+                                        input("👉 Pressione ENTER para fechar o navegador...")
+                                        
+                                        print("✅ Salvamento manual concluído pelo usuário.")
+                                        
+                                    except Exception as e:
+                                        print(f"❌ Não foi possível clicar no botão Baixar: {e}")
+                                    
+                                    exportar_clicado = True
+                                    break
+                        except Exception as e:
+                            print(f"  ❌ Não foi possível clicar na opção {i+1}: {e}")
+                            continue
+                except Exception as e:
+                    print(f"❌ Estratégia alternativa também falhou: {e}")
 
         except Exception as e:
-            print(f"❌ Erro no download: {e}")
+            print(f"❌ Erro na exportação: {e}")
 
     except Exception as e:
         print("❌ Erro geral na execução:", str(e))
@@ -284,4 +498,7 @@ def executar_faturamento():
 executar_faturamento()
 
 # Encerra o navegador
+print("")
+print("🔚 Fechando navegador...")
 driver.quit()
+print("✅ Navegador fechado. Processo concluído!")
