@@ -9,7 +9,7 @@ import os
 
 # Credenciais de acesso
 usuario = "matheus.melo@bateriasmoura.com"
-senha = "@Mat108104"
+senha = "@Mat1081042102"
 
 # Configurações do navegador
 options = webdriver.ChromeOptions()
@@ -502,3 +502,4 @@ print("")
 print("🔚 Fechando navegador...")
 driver.quit()
 print("✅ Navegador fechado. Processo concluído!")
+
