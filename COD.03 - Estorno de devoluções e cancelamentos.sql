@@ -8,4 +8,3 @@ WHERE
     NUM_NOTA_FISCAL LIKE '%EST%' 
     OR NUM_NOTA_FISCAL LIKE '%NFD%'
   )
- 
